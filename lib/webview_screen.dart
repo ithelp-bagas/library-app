@@ -133,29 +133,37 @@ class _WebviewScreenState extends State<WebviewScreen> {
                 ),
                 onWebViewCreated: (InAppWebViewController controller) {
                   _webViewController = controller;
-                  controller.evaluateJavascript(source: """
-                    function fetchWithHeaders(url, headers) {
-                      return fetch(url, {
-                        method: 'POST', // Change to 'GET' if needed
-                        headers: headers,
-                      }).then(response => response.text());
-                    }
-                
-                    fetchWithHeaders('http://192.168.1.141/fingerspot-library/pwa/post-vote', {
-                      'Authorization': 'Bearer ${widget.token}'
-                    }).then(result => {
-                      console.log(result); // Handle the result as needed
-                    }).catch(error => {
-                      console.error(error); // Handle errors as needed
-                    });
-                  """);
-
                   controller.addJavaScriptHandler(
                     handlerName: "finishActivity",
                     callback: (args) {
                       _pop();
                     },
                   );
+                },
+                onAjaxProgress: (InAppWebViewController controller, AjaxRequest ajaxRequest) {
+                  // Log the AJAX request URL
+                  print('AJAX request URL: ${ajaxRequest.url}');
+
+                  // Modify headers if necessary
+                  final headers = ajaxRequest.headers;
+
+                  // Return Future with the action to allow the request to proceed
+                  return Future.value(AjaxRequestAction.PROCEED);
+                },
+                onJsBeforeUnload: (controller, jsBeforeUnloadRequest) async{
+                  final url = jsBeforeUnloadRequest.url;
+
+                  if(url.toString() != ''){
+                    final modifiedUrl = URLRequest(
+                      url: url,
+                      headers:{
+                        'Authorization': 'Bearer ${widget.token}'
+                      }
+                    );
+
+                    await controller.loadUrl(urlRequest: modifiedUrl);
+                  }
+                  return JsBeforeUnloadResponse();
                 },
                 onLoadStart: (InAppWebViewController controller, WebUri? url) {
                   setState(() {
